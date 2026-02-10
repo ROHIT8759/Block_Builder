@@ -26,7 +26,7 @@ describe('Navbar Component', () => {
     }
 
     const mockSupabaseStore = {
-        initializeUser: jest.fn(),
+        initializeUser: jest.fn().mockResolvedValue(undefined),
     }
 
     const baseWallet = {

@@ -29,7 +29,7 @@ describe('BlockSidebar Component', () => {
 
         // Check for core features
         expect(screen.getByText(/ERC20 Token/i)).toBeInTheDocument()
-        expect(screen.getByText(/NFT Collection/i)).toBeInTheDocument()
+        expect(screen.getByText(/NFT Contract/i)).toBeInTheDocument()
         expect(screen.getByText(/Pausable/i)).toBeInTheDocument()
     })
 
