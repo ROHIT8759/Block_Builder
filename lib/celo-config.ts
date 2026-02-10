@@ -1,5 +1,6 @@
-import { Networks, Server } from "@stellar/stellar-sdk"
-import * as SorobanRpc from "@stellar/stellar-sdk/rpc"
+import { Networks, rpc, Horizon } from "@stellar/stellar-sdk"
+
+type SorobanRpc = typeof rpc
 
 export type StellarNetworkKey = "testnet" | "mainnet" | "sepolia"
 
@@ -67,9 +68,9 @@ export function getNetworkConfig(network: StellarNetworkKey = "testnet"): Stella
   return CELO_NETWORKS[network]
 }
 
-export function getSorobanServer(network: StellarNetworkKey = "testnet"): SorobanRpc.Server {
+export function getSorobanServer(network: StellarNetworkKey = "testnet"): rpc.Server {
   const config = getNetworkConfig(network)
-  return new SorobanRpc.Server(config.rpcUrl, { allowHttp: false })
+  return new rpc.Server(config.rpcUrl, { allowHttp: false })
 }
 
 export async function getProvider(network: StellarNetworkKey = "testnet") {
@@ -79,7 +80,7 @@ export async function getProvider(network: StellarNetworkKey = "testnet") {
 
 export function getHorizonServer(network: StellarNetworkKey = "testnet") {
   const config = getNetworkConfig(network)
-  return new Server(config.horizonUrl, { allowHttp: false })
+  return new Horizon.Server(config.horizonUrl, { allowHttp: false })
 }
 
 export function getNetworkPassphrase(network: StellarNetworkKey = "testnet"): string {

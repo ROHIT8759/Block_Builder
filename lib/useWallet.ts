@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import * as Freighter from "@stellar/freighter-api"
-import * as SorobanRpc from "@stellar/stellar-sdk/rpc"
+import { rpc } from "@stellar/stellar-sdk"
 import { CELO_NETWORKS, getNetworkConfig, getSorobanServer, type StellarNetworkKey } from "./celo-config"
 
 type FreighterNetworkDetails = {
@@ -73,7 +73,7 @@ async function safelyInvoke<T>(fn: (() => Promise<T>) | undefined, fallback?: T)
 export function useWallet(defaultNetwork: StellarNetworkKey = "testnet") {
   const [walletAddress, setWalletAddress] = useState<string | null>(null)
   const [network, setNetwork] = useState<StellarNetworkKey>(defaultNetwork)
-  const [server, setServer] = useState<SorobanRpc.Server | null>(null)
+  const [server, setServer] = useState<rpc.Server | null>(null)
   const [chainId, setChainId] = useState<number | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [error, setError] = useState<string | null>(null)

@@ -7,9 +7,9 @@ import {
   Transaction,
   TransactionBuilder,
   nativeToScVal,
+  rpc,
   xdr,
 } from "@stellar/stellar-sdk"
-import * as SorobanRpc from "@stellar/stellar-sdk/rpc"
 import { getExplorerUrl, getNetworkPassphrase, getSorobanServer, type StellarNetworkKey } from "./celo-config"
 import { type Block } from "./store"
 
@@ -77,18 +77,16 @@ async function fetchTokenWasm(): Promise<Uint8Array> {
   return cachedTokenWasm
 }
 
-async function simulateAndAssemble(server: SorobanRpc.Server, tx: Transaction) {
+async function simulateAndAssemble(server: rpc.Server, tx: Transaction) {
   const simulation = await server.simulateTransaction(tx)
-  if (simulation.error) {
+  if (rpc.Api.isSimulationError(simulation)) {
     throw new Error(simulation.error)
   }
-  if (!simulation.transactionData) {
-    throw new Error("Simulation response missing transaction data")
-  }
-  return SorobanRpc.assembleTransaction(tx, simulation)
+  const assembled = rpc.assembleTransaction(tx, simulation)
+  return assembled.build()
 }
 
-async function waitForTransaction(server: SorobanRpc.Server, hash: string) {
+async function waitForTransaction(server: rpc.Server, hash: string) {
   const startedAt = Date.now()
   while (Date.now() - startedAt < TRANSACTION_POLL_TIMEOUT_MS) {
     const result = await server.getTransaction(hash)
@@ -100,15 +98,15 @@ async function waitForTransaction(server: SorobanRpc.Server, hash: string) {
   throw new Error("Timed out waiting for Soroban transaction confirmation")
 }
 
-async function signAndSendTransaction(server: SorobanRpc.Server, tx: Transaction, networkPassphrase: string) {
-  const signedXdr = await Freighter.signTransaction(tx.toXDR(), {
+async function signAndSendTransaction(server: rpc.Server, tx: Transaction, networkPassphrase: string) {
+  const signResult = await Freighter.signTransaction(tx.toXDR(), {
     networkPassphrase,
   })
 
-  const signedTx = TransactionBuilder.fromXDR(signedXdr, networkPassphrase)
+  const signedTx = TransactionBuilder.fromXDR(signResult.signedTxXdr, networkPassphrase) as Transaction
   const sendResponse = await server.sendTransaction(signedTx)
 
-  if (sendResponse.status === "ERROR" || sendResponse.errorResultXdr) {
+  if (sendResponse.status === "ERROR") {
     throw new Error("Soroban RPC rejected the transaction")
   }
 
@@ -128,7 +126,7 @@ async function signAndSendTransaction(server: SorobanRpc.Server, tx: Transaction
 }
 
 async function installContractCode(
-  server: SorobanRpc.Server,
+  server: rpc.Server,
   accountId: string,
   networkPassphrase: string,
   wasm: Uint8Array,
@@ -150,7 +148,7 @@ async function installContractCode(
   tx = await simulateAndAssemble(server, tx)
   const { hash, result } = await signAndSendTransaction(server, tx, networkPassphrase)
 
-  const returnValue = result.result?.retval
+  const returnValue = result.returnValue
   if (!returnValue || returnValue.switch().name !== "scvBytes") {
     throw new Error("Unexpected response when uploading contract WASM")
   }
@@ -160,7 +158,7 @@ async function installContractCode(
 }
 
 async function createContractInstance(
-  server: SorobanRpc.Server,
+  server: rpc.Server,
   accountId: string,
   networkPassphrase: string,
   wasmHash: string,
@@ -196,7 +194,7 @@ async function createContractInstance(
   tx = await simulateAndAssemble(server, tx)
   const { hash, result } = await signAndSendTransaction(server, tx, networkPassphrase)
 
-  const returnValue = result.result?.retval
+  const returnValue = result.returnValue
   if (!returnValue || returnValue.switch().name !== "scvAddress") {
     throw new Error("Unexpected response when creating the contract instance")
   }
@@ -207,10 +205,10 @@ async function createContractInstance(
 }
 
 async function invokeContract(
-  server: SorobanRpc.Server,
+  server: rpc.Server,
   accountId: string,
   networkPassphrase: string,
-  operation: Operation,
+  operation: ReturnType<Contract["call"]>,
 ) {
   const account = await server.getAccount(accountId)
   let tx = new TransactionBuilder(account, {
