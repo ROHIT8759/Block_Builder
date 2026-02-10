@@ -9,7 +9,7 @@ module.exports = {
     TransactionBuilder: jest.fn().mockImplementation(() => ({
         toXDR: jest.fn().mockReturnValue('mock_xdr'),
     })),
-    Transaction: function() {
+    Transaction: function () {
         return {
             toXDR: jest.fn().mockReturnValue('mock_xdr'),
         }
