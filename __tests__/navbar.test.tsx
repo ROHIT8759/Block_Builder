@@ -40,9 +40,9 @@ describe('Navbar Component', () => {
 
     beforeEach(() => {
         jest.clearAllMocks()
-        ;(useBuilderStore as jest.Mock).mockImplementation((selector: any) => (selector ? selector(mockStore) : mockStore))
-        ;(useSupabaseStore as jest.Mock).mockImplementation((selector: any) => (selector ? selector(mockSupabaseStore) : mockSupabaseStore))
-        ;(useWallet as jest.Mock).mockReturnValue(baseWallet)
+            ; (useBuilderStore as jest.Mock).mockImplementation((selector: any) => (selector ? selector(mockStore) : mockStore))
+            ; (useSupabaseStore as jest.Mock).mockImplementation((selector: any) => (selector ? selector(mockSupabaseStore) : mockSupabaseStore))
+            ; (useWallet as jest.Mock).mockReturnValue(baseWallet)
     })
 
     test("renders navbar with title", () => {
@@ -56,7 +56,7 @@ describe('Navbar Component', () => {
     })
 
     test("shows wallet address when connected", () => {
-        ;(useWallet as jest.Mock).mockReturnValue({
+        ; (useWallet as jest.Mock).mockReturnValue({
             ...baseWallet,
             walletAddress: "GBRHJOG2LSIGDKS4TYW47M4PTWM7AJSWYA2MCYO6J5M2FREIHEFREI99",
         })
