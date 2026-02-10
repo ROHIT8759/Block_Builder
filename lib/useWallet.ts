@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
-import * as Freighter from "@stellar/freighter-api"
+import { isConnected, isAllowed, getAddress, getNetwork, requestAccess, setAllowed } from "@stellar/freighter-api"
 import { rpc } from "@stellar/stellar-sdk"
 import { CELO_NETWORKS, getNetworkConfig, getSorobanServer, type StellarNetworkKey } from "./celo-config"
 
@@ -10,63 +10,27 @@ type FreighterNetworkDetails = {
   networkPassphrase?: string
 }
 
-type FreighterApi = {
-  isConnected?: () => Promise<boolean>
-  isAllowed?: () => Promise<boolean>
-  requestAccess?: (details?: FreighterNetworkDetails) => Promise<boolean>
-  getPublicKey?: () => Promise<string>
-  getNetwork?: () => Promise<FreighterNetworkDetails>
-  setAllowed?: (allowed: boolean) => Promise<boolean>
-  listenForNetworkChanges?: (handler: (details: FreighterNetworkDetails) => void) => Promise<() => void> | (() => void)
-  onNetworkChange?: (handler: (details: FreighterNetworkDetails) => void) => void | (() => void)
-}
-
 declare global {
   interface Window {
-    freighterApi?: FreighterApi
+    freighterApi?: any
   }
 }
 
-function resolveFreighterFunction<TKey extends keyof FreighterApi>(key: TKey): FreighterApi[TKey] {
-  const moduleCandidate = (Freighter as unknown as FreighterApi)?.[key]
-  if (moduleCandidate) {
-    return moduleCandidate
-  }
-
-  if (typeof window === "undefined") {
-    return undefined as FreighterApi[TKey]
-  }
-
-  return window.freighterApi?.[key]
-}
-
-function mapNetworkKey(details?: FreighterNetworkDetails): StellarNetworkKey {
-  const value = details?.network?.toUpperCase()
+function mapNetworkKey(network?: string): StellarNetworkKey {
+  const value = network?.toUpperCase()
   if (value === "PUBLIC" || value === "MAINNET") {
     return "mainnet"
   }
   return "testnet"
 }
 
-function buildNetworkDetails(network: StellarNetworkKey): FreighterNetworkDetails {
+function buildNetworkDetails(network: StellarNetworkKey): any {
   const config = getNetworkConfig(network)
   return {
     network: network === "mainnet" ? "PUBLIC" : "TESTNET",
     networkPassphrase: config.networkPassphrase,
     networkUrl: config.horizonUrl,
     rpcUrl: config.rpcUrl,
-  }
-}
-
-async function safelyInvoke<T>(fn: (() => Promise<T>) | undefined, fallback?: T): Promise<T | undefined> {
-  if (typeof fn !== "function") {
-    return fallback
-  }
-  try {
-    return await fn()
-  } catch (error) {
-    console.warn("Freighter call failed", error)
-    return fallback
   }
 }
 
@@ -91,35 +55,57 @@ export function useWallet(defaultNetwork: StellarNetworkKey = "testnet") {
       return
     }
 
-    const isConnected = (await safelyInvoke(resolveFreighterFunction("isConnected"), false)) ?? false
-    setIsFreighterInstalled(isConnected)
+    // Check if Freighter extension is installed
+    const installed = typeof window.freighterApi !== "undefined"
+    console.log("🔍 Freighter detection:", { 
+      windowFreighterApi: typeof window.freighterApi,
+      installed 
+    })
+    setIsFreighterInstalled(installed)
 
-    if (!isConnected) {
+    if (!installed) {
       setWalletAddress(null)
       setServer(null)
       setChainId(null)
       return
     }
 
-    const isAllowed = (await safelyInvoke(resolveFreighterFunction("isAllowed"), false)) ?? false
-    if (!isAllowed) {
+    try {
+      // Check if user has already connected
+      const connectionResult = await isConnected()
+      console.log("📡 Freighter isConnected result:", connectionResult)
+      
+      if (!connectionResult.isConnected) {
+        setWalletAddress(null)
+        return
+      }
+
+      const allowedResult = await isAllowed()
+      console.log("🔐 Freighter isAllowed result:", allowedResult)
+      
+      if (!allowedResult) {
+        setWalletAddress(null)
+        return
+      }
+
+      const addressResult = await getAddress()
+      console.log("📍 Freighter getAddress result:", addressResult)
+      
+      const networkResult = await getNetwork()
+      console.log("🌐 Freighter getNetwork result:", networkResult)
+
+      if (addressResult.address) {
+        setWalletAddress(addressResult.address)
+      } else {
+        setWalletAddress(null)
+      }
+
+      const resolvedNetwork = networkResult.network ? mapNetworkKey(networkResult.network) : defaultNetwork
+      updateNetworkState(resolvedNetwork)
+    } catch (err) {
+      console.warn("⚠️ Freighter connection check failed:", err)
       setWalletAddress(null)
-      return
     }
-
-    const [publicKey, details] = await Promise.all([
-      safelyInvoke(resolveFreighterFunction("getPublicKey")),
-      safelyInvoke(resolveFreighterFunction("getNetwork")),
-    ])
-
-    if (publicKey) {
-      setWalletAddress(publicKey)
-    } else {
-      setWalletAddress(null)
-    }
-
-    const resolvedNetwork = details ? mapNetworkKey(details) : defaultNetwork
-    updateNetworkState(resolvedNetwork)
   }, [defaultNetwork, updateNetworkState])
 
   useEffect(() => {
@@ -127,40 +113,60 @@ export function useWallet(defaultNetwork: StellarNetworkKey = "testnet") {
       return
     }
 
-    let unsubscribe: void | (() => void)
+    let checkInterval: NodeJS.Timeout | null = null
+    let checksRemaining = 40 // Check for up to 20 seconds (40 * 500ms)
 
-    refreshConnection()
-
-    const attachNetworkListener = async () => {
-      const listenFn = resolveFreighterFunction("listenForNetworkChanges")
-      const legacyFn = resolveFreighterFunction("onNetworkChange")
-      const handler = (details: FreighterNetworkDetails) => {
-        const nextNetwork = mapNetworkKey(details)
-        updateNetworkState(nextNetwork)
-      }
-
-      try {
-        if (typeof listenFn === "function") {
-          unsubscribe = await listenFn(handler)
-          return
+    // Function to check if Freighter is available
+    const checkFreighterAvailability = () => {
+      const isAvailable = typeof window.freighterApi !== "undefined"
+      console.log("🔍 Checking Freighter:", { 
+        freighterApi: typeof window.freighterApi, 
+        isAvailable,
+        windowKeys: typeof window !== 'undefined' ? Object.keys(window).filter(k => k.toLowerCase().includes('freight')) : []
+      })
+      
+      if (isAvailable) {
+        console.log("✅ Freighter extension found!")
+        setIsFreighterInstalled(true)
+        refreshConnection()
+        if (checkInterval) {
+          clearInterval(checkInterval)
+          checkInterval = null
         }
-
-        if (typeof legacyFn === "function") {
-          unsubscribe = await legacyFn(handler)
-        }
-      } catch (error) {
-        console.warn("Failed to attach Freighter network listener", error)
+        return true
       }
+      return false
     }
 
-    attachNetworkListener()
+    // Check immediately
+    const foundImmediately = checkFreighterAvailability()
+
+    // If not found immediately, keep checking periodically
+    if (!foundImmediately) {
+      console.log("⏳ Waiting for Freighter extension to load...")
+      checkInterval = setInterval(() => {
+        checksRemaining--
+        const found = checkFreighterAvailability()
+        
+        if (found || checksRemaining <= 0) {
+          if (!found && checksRemaining <= 0) {
+            console.log("❌ Freighter extension not detected after 20 seconds")
+            setIsFreighterInstalled(false)
+          }
+          if (checkInterval) {
+            clearInterval(checkInterval)
+            checkInterval = null
+          }
+        }
+      }, 500)
+    }
 
     return () => {
-      if (typeof unsubscribe === "function") {
-        unsubscribe()
+      if (checkInterval) {
+        clearInterval(checkInterval)
       }
     }
-  }, [refreshConnection, updateNetworkState])
+  }, [refreshConnection])
 
   const connect = useCallback(
     async (targetNetwork: StellarNetworkKey = defaultNetwork) => {
@@ -168,17 +174,30 @@ export function useWallet(defaultNetwork: StellarNetworkKey = "testnet") {
         setIsConnecting(true)
         setError(null)
 
-        const requestAccess = resolveFreighterFunction("requestAccess")
-        if (typeof requestAccess !== "function") {
-          throw new Error("Freighter extension not detected")
+        // Check if Freighter is installed - do a fresh check
+        const installed = typeof window !== "undefined" && typeof window.freighterApi !== "undefined"
+        console.log("🔗 Connect attempt:", { 
+          installed, 
+          freighterApi: typeof window?.freighterApi,
+          keys: typeof window !== 'undefined' ? Object.keys(window).filter(k => k.toLowerCase().includes('freight')) : []
+        })
+        
+        // Update state immediately
+        setIsFreighterInstalled(installed)
+        
+        if (!installed) {
+          throw new Error("Freighter extension not detected. Please install it from freighter.app")
         }
 
-        const granted = await requestAccess(buildNetworkDetails(targetNetwork))
-        if (!granted) {
-          throw new Error("Freighter access was not granted")
+        // Request access - returns { address, error? }
+        const result = await requestAccess()
+        
+        if (result.error || !result.address) {
+          throw new Error(result.error || "Freighter access was not granted")
         }
 
-        const publicKey = (await safelyInvoke(resolveFreighterFunction("getPublicKey"))) ?? null
+        const publicKey = result.address
+        
         if (!publicKey) {
           throw new Error("Unable to retrieve Freighter account")
         }
@@ -204,25 +223,23 @@ export function useWallet(defaultNetwork: StellarNetworkKey = "testnet") {
     setServer(null)
     setError(null)
 
-    const setAllowed = resolveFreighterFunction("setAllowed")
-    if (typeof setAllowed === "function") {
-      try {
-        await setAllowed(false)
-      } catch (error) {
-        console.warn("Failed to revoke Freighter permissions", error)
-      }
+    try {
+      // setAllowed in v6 doesn't revoke permissions, it just returns status
+      // User needs to disconnect via Freighter extension itself
+      await setAllowed()
+    } catch (error) {
+      console.warn("Failed to update Freighter permissions", error)
     }
   }, [])
 
   const switchNetwork = useCallback(
     async (nextNetwork: StellarNetworkKey) => {
       try {
-        const requestAccess = resolveFreighterFunction("requestAccess")
-        if (typeof requestAccess !== "function") {
-          throw new Error("Freighter extension not detected")
+        // Request access again for the new network
+        const result = await requestAccess()
+        if (result.error) {
+          throw new Error(result.error)
         }
-
-        await requestAccess(buildNetworkDetails(nextNetwork))
         updateNetworkState(nextNetwork)
         return true
       } catch (err: any) {

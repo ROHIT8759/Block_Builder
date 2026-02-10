@@ -45,13 +45,23 @@ export function Navbar() {
   }, [walletAddress, chainId, initializeUser, setWalletAddressStore, setWalletChainId])
 
   const handleConnectWallet = async () => {
-    if (!isFreighterInstalled) {
+    // Do a fresh check before deciding what to do
+    const hasFreighter = typeof window !== "undefined" && typeof window.freighterApi !== "undefined"
+    console.log("🔘 Button clicked - Freighter check:", {
+      hasFreighter,
+      isFreighterInstalled,
+      freighterApi: typeof window?.freighterApi
+    })
+
+    if (!hasFreighter) {
+      console.log("❌ Freighter not found, opening install page")
       if (typeof window !== "undefined") {
         window.open("https://www.freighter.app/", "_blank", "noopener,noreferrer")
       }
       return
     }
 
+    console.log("✅ Freighter found, attempting to connect...")
     try {
       await connect()
     } catch (err) {
@@ -146,7 +156,7 @@ export function Navbar() {
               title="Connect your wallet"
             >
               <Wallet size={16} className="group-hover:animate-pulse" />
-              {isConnecting ? "Connecting..." : isFreighterInstalled ? "Connect Wallet" : "Install Freighter"}
+              {isConnecting ? "Connecting..." : (typeof window !== "undefined" && typeof window.freighterApi !== "undefined") ? "Connect Wallet" : "Install Freighter"}
             </button>
           )}
           <button
@@ -219,7 +229,7 @@ export function Navbar() {
                 className="w-full px-4 py-3 bg-primary/10 border border-primary rounded-lg hover:bg-primary hover:text-background transition-all text-primary text-sm font-medium flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 <Wallet size={16} />
-                {isConnecting ? "Connecting..." : isFreighterInstalled ? "Connect Wallet" : "Install Freighter"}
+                {isConnecting ? "Connecting..." : (typeof window !== "undefined" && typeof window.freighterApi !== "undefined") ? "Connect Wallet" : "Install Freighter"}
               </button>
             )}
             <div className="grid grid-cols-2 gap-2">

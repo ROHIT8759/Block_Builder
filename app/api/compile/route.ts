@@ -12,6 +12,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    
     // Prepare the compiler input
     const input = {
       language: "Solidity",
