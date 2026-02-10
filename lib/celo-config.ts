@@ -1,5 +1,4 @@
-import { Networks, Server } from "@stellar/stellar-sdk"
-import { SorobanRpc } from "@stellar/soroban-client"
+import { Networks, Server, SorobanRpc } from "@stellar/stellar-sdk"
 
 export type StellarNetworkKey = "testnet" | "mainnet" | "sepolia"
 

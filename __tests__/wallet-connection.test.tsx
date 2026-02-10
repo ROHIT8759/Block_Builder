@@ -18,13 +18,7 @@ jest.mock("@stellar/freighter-api", () => ({
     setAllowed: (allowed: boolean) => mockSetAllowed(allowed),
 }))
 
-jest.mock("@stellar/soroban-client", () => ({
-    SorobanRpc: {
-        Server: jest.fn().mockImplementation(() => ({
-            isMockServer: true,
-        })),
-    },
-}))
+
 
 describe("useWallet", () => {
     beforeEach(() => {
