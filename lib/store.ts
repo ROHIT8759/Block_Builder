@@ -42,7 +42,7 @@ export interface DeployedContract {
   contractName: string
   tokenName?: string
   tokenSymbol?: string
-  network: "sepolia" | "mainnet"
+  network: "testnet" | "mainnet"
   networkName: string
   chainId: number
   deployer: string

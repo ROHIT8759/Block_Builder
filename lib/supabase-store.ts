@@ -188,26 +188,29 @@ export const useSupabaseStore = create<SupabaseStore>()(
           const store = useBuilderStore.getState()
 
           // Convert Supabase contracts to local format
-          const localContracts = contracts.map((c) => ({
-            id: c.id,
-            contractAddress: c.contract_address,
-            contractName: c.contract_name,
-            tokenName: c.token_name || undefined,
-            tokenSymbol: c.token_symbol || undefined,
-            network: c.network,
-            networkName: c.network_name,
-            chainId: c.chain_id,
-            deployer: c.deployer,
-            deployedAt: c.deployed_at,
-            transactionHash: c.transaction_hash,
-            contractType: c.contract_type,
-            abi: c.abi,
-            solidityCode: c.solidity_code,
-            blocks: c.blocks,
-            explorerUrl: c.explorer_url,
-            frontendUrl: c.frontend_url || undefined,
-            githubRepo: c.github_repo || undefined,
-          }))
+          const localContracts = contracts.map((c) => {
+            const normalizedNetwork = c.network === "sepolia" ? "testnet" : c.network
+            return {
+              id: c.id,
+              contractAddress: c.contract_address,
+              contractName: c.contract_name,
+              tokenName: c.token_name || undefined,
+              tokenSymbol: c.token_symbol || undefined,
+              network: normalizedNetwork,
+              networkName: c.network_name,
+              chainId: c.chain_id,
+              deployer: c.deployer,
+              deployedAt: c.deployed_at,
+              transactionHash: c.transaction_hash,
+              contractType: c.contract_type,
+              abi: c.abi,
+              solidityCode: c.solidity_code,
+              blocks: c.blocks,
+              explorerUrl: c.explorer_url,
+              frontendUrl: c.frontend_url || undefined,
+              githubRepo: c.github_repo || undefined,
+            }
+          })
 
           store.deployedContracts = localContracts
         } catch (error) {
@@ -237,6 +240,7 @@ export const useSupabaseStore = create<SupabaseStore>()(
           await saveDeployedContract(user.id, {
             projectId: null,
             ...contract,
+            network: contract.network === "testnet" ? "sepolia" : contract.network,
           })
 
           console.log("Contract saved to cloud:", contractId)
