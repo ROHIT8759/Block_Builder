@@ -4,12 +4,12 @@ import {
   Address,
   Contract,
   Operation,
-  SorobanRpc,
   Transaction,
   TransactionBuilder,
   nativeToScVal,
   xdr,
 } from "@stellar/stellar-sdk"
+import * as SorobanRpc from "@stellar/stellar-sdk/rpc"
 import { getExplorerUrl, getNetworkPassphrase, getSorobanServer, type StellarNetworkKey } from "./celo-config"
 import { type Block } from "./store"
 

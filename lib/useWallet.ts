@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import * as Freighter from "@stellar/freighter-api"
-import { SorobanRpc } from "@stellar/stellar-sdk"
+import * as SorobanRpc from "@stellar/stellar-sdk/rpc"
 import { CELO_NETWORKS, getNetworkConfig, getSorobanServer, type StellarNetworkKey } from "./celo-config"
 
 type FreighterNetworkDetails = {
