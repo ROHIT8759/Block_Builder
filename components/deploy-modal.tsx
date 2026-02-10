@@ -24,9 +24,8 @@ type DeploymentSummary = {
     contractId: string
     transactionId: string
     network: StellarNetworkKey
-    explorerUrl: string | null
+    explorerUrl: string
     contractExplorerUrl: string | null
-    simulated: boolean
 }
 
 const NETWORK_OPTIONS: Array<{
@@ -231,7 +230,7 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
             })
 
             const networkConfig = CELO_NETWORKS[selectedNetwork]
-            const explorerUrl = result.explorerUrl ?? null
+            const explorerUrl = result.explorerUrl
             const contractExplorerUrl = getExplorerUrl(result.contractId, selectedNetwork, "account")
 
             const deployedAt = new Date().toISOString()
@@ -251,7 +250,7 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                 abi: [],
                 solidityCode,
                 blocks: [...blocks],
-                explorerUrl: explorerUrl ?? "",
+                explorerUrl,
             }
 
             addDeployedContract(deployedContract)
@@ -279,7 +278,7 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                         abi: [],
                         solidityCode,
                         blocks,
-                        explorerUrl: explorerUrl ?? "",
+                        explorerUrl,
                     })
                     await syncDeployedContracts()
                 } catch (storageError) {
@@ -293,7 +292,6 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                 network: selectedNetwork,
                 explorerUrl,
                 contractExplorerUrl,
-                simulated: result.simulated,
             })
 
             setStep("success")
@@ -343,10 +341,10 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                                 <div key={item} className="flex items-center flex-1">
                                     <div
                                         className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${isCurrent
-                                                ? "bg-primary text-background"
-                                                : isComplete
-                                                    ? "bg-primary/80 text-background"
-                                                    : "bg-border text-muted"
+                                            ? "bg-primary text-background"
+                                            : isComplete
+                                                ? "bg-primary/80 text-background"
+                                                : "bg-border text-muted"
                                             }`}
                                     >
                                         {index + 1}
@@ -583,11 +581,7 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                                 <CheckCircle size={24} />
                                 <div>
                                     <h3 className="text-lg font-semibold text-foreground">Deployment recorded</h3>
-                                    <p className="text-sm text-muted">
-                                        {summary.simulated
-                                            ? "This is a simulated deployment while the Soroban pipeline is finalized."
-                                            : "Your Soroban contract transaction has been submitted."}
-                                    </p>
+                                    <p className="text-sm text-muted">Your Soroban contract is live on the selected network.</p>
                                 </div>
                             </div>
 
@@ -619,7 +613,7 @@ export function DeployModal({ isOpen, onClose }: DeployModalProps) {
                                     </a>
                                 ) : (
                                     <div className="flex-1 px-4 py-2 bg-background border border-dashed border-border rounded-lg text-sm text-muted flex items-center justify-center">
-                                        Explorer link unavailable for simulated deployment
+                                        Explorer link unavailable
                                     </div>
                                 )}
                                 {summary.contractExplorerUrl && (
